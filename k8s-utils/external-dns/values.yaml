@@ -1,0 +1,33 @@
+# https://github.com/kubernetes-sigs/external-dns
+
+# -- Extra arguments to provide to _ExternalDNS_.
+extraArgs:
+  - --annotation-filter=external-dns.alpha.kubernetes.io/exclude notin (true)
+
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: karpenter.sh/nodepool
+              operator: DoesNotExist
+            - key: node-priority
+              operator: In
+              values:
+                - ${eks_node_priority}
+
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values:
+                - ${app_name}
+        topologyKey: kubernetes.io/hostname
+
+tolerations:
+  - key: app-priority
+    operator: Equal
+    value: ${eks_node_priority}
+    effect: NoSchedule

@@ -1,0 +1,47 @@
+pipeline {
+  agent {
+    kubernetes {
+      defaultContainer 'jnlp'
+      yamlFile 'kaniko-pod.yaml'
+    }
+  }
+  environment {
+    IMAGE_NAME = 'service-name'
+    IMAGE_TAG = "0.0.${BUILD_NUMBER}"
+  }
+  stages {
+    stage('Prepare') {
+      steps {
+        sh 'echo Preparing the environment'
+      }
+    }
+    
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+    
+    stage('Build and Push Image with Kaniko') {
+      steps {
+        container('kaniko') {
+          script {
+            try {
+              sh """
+              /kaniko/executor \
+                --context=dir://${WORKSPACE} \
+                --dockerfile=${WORKSPACE}/Dockerfile \
+                --destination=${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} \
+                --destination=${ECR_REGISTRY}/${IMAGE_NAME}:latest
+              """
+              echo "Image ${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} and latest tag successfully built and pushed."
+            } catch (Exception e) {
+              echo "Error in building or pushing with Kaniko: ${e.message}"
+              throw e 
+            }
+          }
+        }
+      }
+    }   
+  }
+}

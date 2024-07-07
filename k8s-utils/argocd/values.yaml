@@ -1,0 +1,74 @@
+## Globally shared configuration
+global:
+  domain: argocd.team.edu-tech.io
+  # Default affinity preset for all components
+  affinity:
+    # -- Default pod anti-affinity rules. Either: `none`, `soft` or `hard`
+    podAntiAffinity: soft
+    # Node affinity rules
+    nodeAffinity:
+      # -- Default node affinity rules. Either: `none`, `soft` or `hard`
+      type: hard
+      # -- Default match expressions for node affinity
+      matchExpressions:
+        - key: node-priority
+          operator: In
+          values:
+            - ${eks_node_priority}
+
+  # -- Default [TopologySpreadConstraints] rules for all components
+  ## Ref: https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/
+  ## If labelSelector is left out, it will default to the labelSelector of the component
+  topologySpreadConstraints:
+    []
+    # - maxSkew: 1
+    #   topologyKey: topology.kubernetes.io/zone
+    #   whenUnsatisfiable: DoNotS
+
+configs:
+  credentialTemplates:
+    https-creds:
+      url: https://github.com/argoproj
+      password: edutech1234!
+      username: root
+    # Gitlab 이전 후 ssh 방식으로 변경
+    # ssh-creds:
+    #  url: git@github.com:argoproj-labs
+    #  sshPrivateKey: |
+    #    -----BEGIN OPENSSH PRIVATE KEY-----
+    #    ...
+    #    -----END OPENSSH PRIVATE KEY-----
+  repositories:
+    terraform-k8s-management:
+      name: terraform-k8s-management
+      url: https://gitlab.edu-tech.io/gitops/terraform-k8s-management
+
+server:
+  # Argo CD server ingress configuration
+  ingress:
+    enabled: true
+    controller: aws
+    labels: {}
+    ## Ref: https://argo-cd.readthedocs.io/en/stable/operator-manual/ingress/#option-1-ssl-passthrough
+    annotations:
+      alb.ingress.kubernetes.io/load-balancer-name: monitor-router-alb
+      alb.ingress.kubernetes.io/group.name: monitor-router.alb
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:ap-northeast-2:564765949096:certificate/ef558609-fd8d-493b-aa99-d92bb310a8c8"
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80,"HTTPS": 443}]'
+      alb.ingress.kubernetes.io/actions.redirect: '{"Type": "redirect", "RedirectConfig":{ "Protocol": "HTTPS", "Port": "443", "StatusCode": "HTTP_301"}}'
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+      alb.ingress.kubernetes.io/backend-protocol: HTTPS
+      external-dns.alpha.kubernetes.io/hostname: argocd.team.edu-tech.io
+
+    ingressClassName: "alb"
+
+    # -- Argo CD server hostname
+    # @default -- `""` (defaults to global.domain)
+    hostname: ""
+
+    # -- The path to Argo CD server
+    path: /
+
+    pathType: Prefix

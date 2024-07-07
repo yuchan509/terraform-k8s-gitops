@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kaniko
+  namespace: jenkins
+spec:
+  containers:
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:debug
+      command: ["sleep"]
+      args: ["infinity"]
+      volumeMounts:
+        - name: docker-cfg
+          mountPath: /kaniko/.docker/
+        - name: aws-mount
+          mountPath: /root/.aws/
+  volumes:
+    - name: aws-mount
+      secret:
+        secretName: aws-secret
+    - name: docker-cfg
+      configMap:
+        name: docker-config
+  restartPolicy: Never

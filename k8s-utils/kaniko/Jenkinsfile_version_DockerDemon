@@ -1,0 +1,60 @@
+pipeline {
+  agent {
+    kubernetes {
+      defaultContainer 'jnlp'
+      yamlFile 'jenkins-agent-pod.yaml'
+    }
+  }
+  environment {
+    IMAGE_NAME = 'service-name'
+    IMAGE_TAG = "0.0.${BUILD_NUMBER}"
+  }
+  stages {
+    stage('Prepare') {
+      steps {
+        sh 'echo Preparing the environment'
+      }
+    }
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+    stage('Build Image with Docker') {
+      steps {
+        container('docker') {
+          script {
+            try {
+              echo "Building Docker Image.."
+              def build = "docker build -t ${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} ."
+              sh build
+              echo "Image ${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} successfully built."
+            } catch (Exception e) {
+              echo "Error building Docker image: ${e.message}"
+              throw e 
+            }
+          }
+        }
+      }
+    }
+    stage('Push to ECR') {
+      steps {
+        container('docker') {
+          script {
+            try {
+              docker.withRegistry("https://${ECR_REGISTRY}", "ecr:${REGION}:${env.AWS_CREDENTIAL}") {
+                def image = docker.image("${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}")
+                image.push()
+              }
+            } catch (Exception e) {
+              echo "Error pushing to ECR: ${e.message}"
+              throw e 
+            }
+          }
+        }
+      }
+    }    
+  }
+}
+
+---

@@ -1,0 +1,65 @@
+webhooks:
+  enabled: true
+  # -- Port number to use for KEDA admission webhooks. Default is 9443.
+  port: ""
+  healthProbePort: 8081
+  # -- Enable webhook to use host network, this is required on EKS with custom CNI
+  useHostNetwork: false
+  name: keda-admission-webhooks
+  revisionHistoryLimit: 10
+  replicaCount: 1
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: karpenter.sh/nodepool
+                operator: DoesNotExist
+              - key: node-priority
+                operator: In
+                values:
+                  - ${eks_node_priority}
+
+    podAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 50
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/part-of
+                  operator: In
+                  values:
+                    - ${name_of_app_part}
+            topologyKey: topology.kubernetes.io/zone
+
+  failurePolicy: Ignore
+
+# -- [Affinity] for pod scheduling for both KEDA operator and Metrics API Server
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: karpenter.sh/nodepool
+              operator: DoesNotExist
+            - key: node-priority
+              operator: In
+              values:
+                - ${eks_node_priority}
+  podAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 50
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/part-of
+                operator: In
+                values:
+                  - ${name_of_app_part}
+          topologyKey: topology.kubernetes.io/zone
+
+tolerations:
+  - key: app-priority
+    operator: Equal
+    value: ${eks_node_priority}
+    effect: NoSchedule
